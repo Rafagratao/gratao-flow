@@ -1,12 +1,50 @@
-# Gratao Flow
+# Gratão Flow
 
-## Sobre
+> 🇧🇷 [Leia em português](README.pt-BR.md)
 
-Gratao Flow e um sistema de gestao de producao para malharia, incluindo corte, DTF, confeccao, terceirizacao, estoque e financeiro.
+Production management system built for **Gratão Uniformes**, a garment and uniform manufacturer in Brazil. It is in daily production use and tracks the full operation:
 
-## Como rodar
+**Customer → Customer order → Service order → Production → Outsourcing → Delivery → Finance → Reports**
 
-Defina uma `SECRET_KEY` forte e as credenciais iniciais do admin antes de subir o ambiente. Nao use valores padrao em producao.
+Version 2 is being re-implemented in [FlowSistem](https://github.com/Rafagratao/FlowSistem) based on what we learned running v1.
+
+## Features
+
+- Customers, customer orders and service orders
+- Production stages: cutting, DTF printing and sewing
+- Outsourced production with partner workshops
+- Piece inventory by product and size
+- Partial and full deliveries
+- Payments, receivables and weekly financial closings
+- Employees and time tracking (multiple shifts per day)
+- PDF reports generated with ReportLab
+- JWT authentication with role-based access
+
+## Tech stack
+
+| Layer | Technologies |
+| --- | --- |
+| Backend | Python 3.11, FastAPI, SQLAlchemy 2.0, Pydantic, Alembic, PostgreSQL, JWT, Passlib/bcrypt, ReportLab |
+| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, React Hook Form, Zod |
+| Infrastructure | Docker, Docker Compose |
+
+## Architecture
+
+```
+frontend/ (Next.js)  ──HTTP/JSON──▶  backend/ (FastAPI)  ──SQLAlchemy──▶  PostgreSQL
+                                        │
+                                        ├── api/routes     REST endpoints
+                                        ├── services/      business rules
+                                        ├── models/        ORM models
+                                        ├── schemas/       Pydantic validation
+                                        └── alembic/       database migrations
+```
+
+On startup the backend runs `alembic upgrade head`, applies a safe base seed (products, sizes, services and the admin user) and serves the API with Uvicorn.
+
+## Running locally
+
+Create a `.env` file from `.env.example` and set strong values:
 
 ```bash
 ENVIRONMENT=development
@@ -18,84 +56,21 @@ POSTGRES_PASSWORD=replace-with-a-strong-postgres-password
 CORS_ORIGINS=http://localhost:3000
 ```
 
+Start everything:
+
 ```bash
 docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-O backend executa as migrations e o seed base automaticamente ao iniciar. A API usa `SECRET_KEY` para assinar JWTs, e o seed cria o admin inicial usando `ADMIN_EMAIL` e `ADMIN_PASSWORD`; se alguma dessas variaveis nao estiver definida, a inicializacao falha claramente.
+- Frontend: http://localhost:3000
+- API docs: http://localhost:8000/docs
 
-O Docker Compose local usa `POSTGRES_PASSWORD` para o usuario `gratao`. Se houver erro de autenticacao por volume antigo, resete apenas o banco local de desenvolvimento:
+Log in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`. To reset the local database to the base seed, run `./scripts/reset-database.ps1`.
 
-```powershell
-docker compose -f docker\docker-compose.yml down -v
-docker compose -f docker\docker-compose.yml up --build -d
-```
+## Production
 
-## 🔐 Configuração de Produção
+Set `ENVIRONMENT=production`, a unique `SECRET_KEY`, a managed PostgreSQL `DATABASE_URL` and `CORS_ORIGINS` limited to the real frontend domain. In production `/docs`, `/redoc` and `/openapi.json` are disabled automatically.
 
-Para deploy controlado, defina `ENVIRONMENT=production` antes de subir os containers.
+## Author
 
-Use uma `SECRET_KEY` forte e unica, defina `POSTGRES_PASSWORD` com uma senha forte e configure `CORS_ORIGINS` apenas com o dominio real do frontend, por exemplo `https://seudominio.com`. Em producao, `/docs`, `/redoc` e `/openapi.json` sao desativados automaticamente.
-
-## Deploy
-
-O deploy real deve usar PostgreSQL gerenciado, backend FastAPI em um Web Service e frontend Next.js em outro Web Service. O backend inicia com `alembic upgrade head`, aplica o seed base seguro e sobe com `uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`.
-
-Variaveis obrigatorias do backend:
-
-```bash
-ENVIRONMENT=production
-SECRET_KEY=replace-with-a-strong-random-secret
-DATABASE_URL=postgresql+psycopg://user:password@host:5432/database
-ADMIN_EMAIL=admin@seudominio.com
-ADMIN_PASSWORD=replace-with-a-strong-admin-password
-ADMIN_NAME=Administrador
-CORS_ORIGINS=https://seu-frontend.example.com
-```
-
-Variaveis obrigatorias do frontend:
-
-```bash
-NEXT_PUBLIC_API_URL=https://sua-api.example.com
-```
-
-Banco:
-
-* PostgreSQL gerenciado.
-* O banco vazio recebe as migrations no startup do backend.
-* O seed base cria produtos, tamanhos, servicos e o admin definido por env.
-* `CORS_ORIGINS` deve conter somente origens reais do frontend; nao use `*`.
-
-## Acesso
-
-* Frontend: http://localhost:3000
-* Backend: http://localhost:8000/docs
-
-## Login
-
-Use o email e a senha definidos em `ADMIN_EMAIL` e `ADMIN_PASSWORD`.
-
-Se existir um banco local antigo criado com credenciais de teste, resete o banco local e recrie o seed com novas variaveis.
-
-## Fluxo basico
-
-1. Criar cliente
-2. Criar OS
-3. Registrar corte
-4. Registrar DTF
-5. Registrar confeccao
-6. Adicionar pagamento
-7. Usar terceirizacao, se necessario
-8. Acompanhar estoque
-9. Registrar funcionarios
-10. Fechar semana
-
-## Limpeza do banco para demonstracao
-
-Para remover dados de teste e voltar ao seed base:
-
-```powershell
-.\scripts\reset-database.ps1
-```
-
-Esse procedimento remove o volume do PostgreSQL, recria o ambiente com Docker Compose, roda todas as migrations e aplica o seed base com produtos, tamanhos, servicos e usuario admin.
+Rafael Gratão · [LinkedIn](https://www.linkedin.com/in/rafael-gratao-96a150242) · [GitHub](https://github.com/Rafagratao)
